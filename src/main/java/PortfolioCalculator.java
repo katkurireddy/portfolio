@@ -3,23 +3,23 @@ import org.joda.time.format.DateTimeFormat;
 import java.util.HashMap;
 import java.util.Map;
 
-public class PortfolioCalculator {
+class PortfolioCalculator {
 
     private Portfolio portfolio;
     private double bondTransRate;
     private double stockTransRate;
     private double cashTransRate;
 
-    public PortfolioCalculator(Portfolio portfolio, double bondTransRate, double stockTransRate,
-                               double cashTransCost) {
+    PortfolioCalculator(Portfolio portfolio, double bondTransRate, double stockTransRate,
+                        double cashTransCost) {
         this.portfolio = portfolio;
         this.bondTransRate = bondTransRate;
         this.stockTransRate = stockTransRate;
         this.cashTransRate = cashTransCost;
     }
 
-    public Double calcBuyOrSellTradesExecutedbyDay(String execDate, BuyOrSell buyOrSell) throws EmptyPortfolioException {
-        if(portfolio.getTrades().size() == 0){
+    Double calcBuyOrSellTradesExecutedbyDay(String execDate, BuyOrSell buyOrSell) throws EmptyPortfolioException {
+        if(portfolio.getInstruments().size() == 0){
             throw new EmptyPortfolioException("Portfolio is Empty");
         }
         DateTime execDateFormatted;
@@ -31,11 +31,13 @@ public class PortfolioCalculator {
         }
         double sum = 0.0;
         int noOfTrades = 0;
-        for (Trade trade : portfolio.getTrades()) {
-            if(trade.getBuyOrSell() == buyOrSell
-                    && trade.getExecutionDate().isEqual(execDateFormatted)) {
+        for (Instrument instrument : portfolio.getInstruments().keySet()) {
+            if(instrument.getBuyOrSell() == buyOrSell
+                    && instrument.getExecutionDate().isEqual(execDateFormatted)) {
                 noOfTrades++;
-                sum += trade.getAgreedFx() * trade.getCurrentPricePerUnit() * trade.getUnits();
+                sum += instrument.getAgreedFx()
+                        * instrument.getCurrentPricePerUnit()
+                        * portfolio.getInstruments().get(instrument);
             }
         }
         if(noOfTrades == 0){
@@ -44,13 +46,15 @@ public class PortfolioCalculator {
         return sum;
     }
 
-    public Double calcPortfolioValue() throws EmptyPortfolioException {
-        if(portfolio.getTrades().size() == 0){
+    Double calcPortfolioValue() throws EmptyPortfolioException {
+        if(portfolio.getInstruments().size() == 0){
             throw new EmptyPortfolioException("Portfolio is Empty");
         }
         double sum = 0;
-        for (Trade trade : portfolio.getTrades()) {
-            sum += trade.getAgreedFx() * trade.getCurrentPricePerUnit() * trade.getUnits();
+        for (Instrument instrument : portfolio.getInstruments().keySet()) {
+            sum += instrument.getAgreedFx()
+                    * instrument.getCurrentPricePerUnit()
+                    * portfolio.getInstruments().get(instrument);
         }
         return sum;
     }
@@ -65,41 +69,42 @@ public class PortfolioCalculator {
         else return cashTransRate;
     }
 
+    private double getSum(Instrument instrument) {
+        double transRate = getTransactionRate(instrument.getSecurityType());
+        int noOfUnits = portfolio.getInstruments().get(instrument);
+        return ((noOfUnits
+                * instrument.getAgreedFx()
+                * (instrument.getCurrentPricePerUnit() - instrument.getPurchasedPricePerUnit()))
+                + (instrument.getTransactionCost(transRate, noOfUnits)));
+    }
+
 
     /*Returns Double.MinValue if given tradeID not found in the Portfolio*/
-    public Double calcPnLforTradeID(String tradeID){
-        for (Trade trade :
-                portfolio.getTrades()) {
-            if (trade.getTradeId().equals(tradeID)) {
-                double transRate = getTransactionRate(trade.getSecurityType());
-                return (trade.getUnits()
-                        * trade.getAgreedFx()
-                        * (trade.getCurrentPricePerUnit() - trade.getPurchasedPricePerUnit()))
-                        + trade.getTransactionCost(transRate);
+    Double calcPnLforTradeID(String tradeID){
+        for (Instrument instrument :
+                portfolio.getInstruments().keySet()) {
+            if (instrument.getInstrumentId().equals(tradeID)) {
+                return getSum(instrument);
             }
         }
         return Double.NaN;
     }
 
-    public Map<Trade, Double> calcPnLForAllTradesInPortfolio() throws EmptyPortfolioException {
-        if(portfolio.getTrades().size() == 0){
+    Map<Instrument, Double> calcPnLForAllTradesInPortfolio() throws EmptyPortfolioException {
+        if(portfolio.getInstruments().size() == 0){
             throw new EmptyPortfolioException("Portfolio is Empty");
         }
-        Map<Trade, Double> pnlMap = new HashMap<Trade, Double>();
-        for (Trade trade :
-                portfolio.getTrades()) {
-            double transRate = getTransactionRate(trade.getSecurityType());
-            Double value = (trade.getUnits()
-                    * trade.getAgreedFx()
-                    * (trade.getCurrentPricePerUnit() - trade.getPurchasedPricePerUnit()))
-                    + trade.getTransactionCost(transRate);
-            pnlMap.put(trade,value);
+        Map<Instrument, Double> pnlMap = new HashMap<Instrument, Double>();
+        for (Instrument instrument :
+                portfolio.getInstruments().keySet()) {
+            Double value = getSum(instrument);
+            pnlMap.put(instrument,value);
         }
         return pnlMap;
     }
 
-    public Map<Trade, Double> calcPnlForDay(String executionDate) throws EmptyPortfolioException {
-        if(portfolio.getTrades().size() == 0){
+    Map<Instrument, Double> calcPnlForDay(String executionDate) throws EmptyPortfolioException {
+        if(portfolio.getInstruments().size() == 0){
             throw new EmptyPortfolioException("Portfolio is Empty");
         }
         DateTime pnlDay;
@@ -109,24 +114,20 @@ public class PortfolioCalculator {
         catch (Exception e){
             throw new IllegalArgumentException("Given Date is not in the Expected Format dd MMM yyy");
         }
-        Map<Trade, Double> pnlMap = new HashMap<Trade, Double>();
-        for (Trade trade :
-                portfolio.getTrades()) {
-            if (trade.getExecutionDate().isEqual(pnlDay)) {
-                double transRate = getTransactionRate(trade.getSecurityType());
-                Double value = (trade.getUnits()
-                        * trade.getAgreedFx()
-                        * (trade.getCurrentPricePerUnit() - trade.getPurchasedPricePerUnit()))
-                        + trade.getTransactionCost(transRate);
-                pnlMap.put(trade, value);
+        Map<Instrument, Double> pnlMap = new HashMap<Instrument, Double>();
+        for (Instrument instrument :
+                portfolio.getInstruments().keySet()) {
+            if (instrument.getExecutionDate().isEqual(pnlDay)) {
+                Double value = getSum(instrument);
+                pnlMap.put(instrument, value);
             }
         }
         return pnlMap;
     }
 
-    public Map<Trade, Double> calcPnLRealisedOrUnRealised(String executionDate, boolean realised)
+    Map<Instrument, Double> calcPnLRealisedOrUnRealised(String executionDate, boolean realised)
                                 throws EmptyPortfolioException {
-        if(portfolio.getTrades().size() == 0){
+        if(portfolio.getInstruments().size() == 0){
             throw new EmptyPortfolioException("Portfolio is Empty");
         }
         DateTime pnlDay;
@@ -136,30 +137,22 @@ public class PortfolioCalculator {
         catch (Exception e){
             throw new IllegalArgumentException("Given Date is not in the Expected Format dd MMM yyy");
         }
-        Map<Trade, Double> pnlMap = new HashMap<Trade, Double>();
+        Map<Instrument, Double> pnlMap = new HashMap<Instrument, Double>();
         if(realised) {
-            for (Trade trade :
-                    portfolio.getTrades()) {
-                if (trade.getExecutionDate().isBefore(pnlDay) || trade.getExecutionDate().equals(pnlDay) ) {
-                    double transRate = getTransactionRate(trade.getSecurityType());
-                    Double value = (trade.getUnits()
-                            * trade.getAgreedFx()
-                            * (trade.getCurrentPricePerUnit() - trade.getPurchasedPricePerUnit()))
-                            + trade.getTransactionCost(transRate);
-                    pnlMap.put(trade, value);
+            for (Instrument instrument :
+                    portfolio.getInstruments().keySet()) {
+                if (instrument.getExecutionDate().isBefore(pnlDay) || instrument.getExecutionDate().equals(pnlDay) ) {
+                    Double value = getSum(instrument);
+                    pnlMap.put(instrument, value);
                 }
             }
         }
         else {
-            for (Trade trade :
-                    portfolio.getTrades()) {
-                if (trade.getExecutionDate().isAfter(pnlDay)) {
-                    double transRate = getTransactionRate(trade.getSecurityType());
-                    Double value = (trade.getUnits()
-                            * trade.getAgreedFx()
-                            * (trade.getCurrentPricePerUnit() - trade.getPurchasedPricePerUnit()))
-                            + trade.getTransactionCost(transRate);
-                    pnlMap.put(trade, value);
+            for (Instrument instrument :
+                    portfolio.getInstruments().keySet()) {
+                if (instrument.getExecutionDate().isAfter(pnlDay)) {
+                    Double value = getSum(instrument);
+                    pnlMap.put(instrument, value);
                 }
             }
         }

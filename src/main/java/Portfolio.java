@@ -1,36 +1,66 @@
-import java.util.ArrayList;
-import java.util.List;
+import java.util.HashMap;
+import java.util.Map;
 
+/*Contains the instruments along with the number of units for each instrument ID*/
 public class Portfolio {
 
-    private List<Trade> trades = new ArrayList<Trade>();
+    private Map<Instrument, Integer> instruments = new HashMap<Instrument, Integer>();
 
-    public Portfolio(List<Trade> trades) {
-        this.trades = trades;
+    public Portfolio(Map<Instrument, Integer> instruments) {
+        this.instruments = instruments;
     }
 
-    public Portfolio() {}
+    Portfolio() {}
 
-    public List<Trade> getTrades() {
-        return trades;
+    Map<Instrument, Integer> getInstruments() {
+        return instruments;
     }
 
-    public void addTradesToPortfolio(Trade trade){
-        if(! trades.contains(trade)) {
-            trades.add(trade);
+    /*Detecting the short position by checking to see if the portfolio already owns the instrument before selling.
+    * No. of units bought should be greater than or equal to the no. of units sold for a particular instrument */
+    private boolean isItShortPosition(String instrumentId, int noOfUnits) {
+        for (Instrument instrument :
+                instruments.keySet()) {
+            if(instrument.getInstrumentId().equals(instrumentId)) {
+                if(instrument.getBuyOrSell().equals(BuyOrSell.BUY)) {
+                    int ownedAssetCnt = instruments.get(instrument);
+                    if(ownedAssetCnt < noOfUnits) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    /*If the portfolio already contains the instrument then we increase the units*/
+    void addInstruments(Instrument instrument, int noOfUnits) {
+        boolean isItShortPosition = false;
+       if(instrument.getBuyOrSell().equals(BuyOrSell.SELL)) {
+           isItShortPosition = isItShortPosition(instrument.getInstrumentId(), noOfUnits);
+       }
+       if(isItShortPosition) {
+           return;
+       }
+        if(!instruments.containsKey(instrument)) {
+            instruments.put(instrument, noOfUnits);
+        }
+        else {
+           int total = instruments.get(instrument) + noOfUnits;
+           instruments.put(instrument, total);
         }
     }
 
-    public void removeAllTrades(){
-        trades.clear();
+    void removeAllInstruments(){
+        instruments.clear();
     }
 
-    public void removeTradesFromPortfolio(Trade trade) throws EmptyPortfolioException {
-        if(trades.size() == 0){
+    void removeInstruments(Instrument instrument) throws EmptyPortfolioException {
+        if(instruments.size() == 0){
             throw new EmptyPortfolioException("Portfolio is Empty");
         }
-        if(trades.contains(trade)) {
-            trades.remove(trade);
+        if(instruments.containsKey(instrument)) {
+            instruments.remove(instrument);
         }
     }
 }
