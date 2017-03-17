@@ -18,8 +18,9 @@ class PortfolioCalculator {
         this.cashTransRate = cashTransCost;
     }
 
-    Double calcBuyOrSellTradesExecutedbyDay(String execDate, BuyOrSell buyOrSell) throws EmptyPortfolioException {
-        if(portfolio.getInstruments().size() == 0){
+    /*Returns Double.NaN if No Trades found in the Portfolio*/
+    Double calcTradesExecutedByDay(String execDate) throws EmptyPortfolioException {
+        if(portfolio.getCurrentPortfolio().size() == 0){
             throw new EmptyPortfolioException("Portfolio is Empty");
         }
         DateTime execDateFormatted;
@@ -31,13 +32,12 @@ class PortfolioCalculator {
         }
         double sum = 0.0;
         int noOfTrades = 0;
-        for (Instrument instrument : portfolio.getInstruments().keySet()) {
-            if(instrument.getBuyOrSell() == buyOrSell
-                    && instrument.getExecutionDate().isEqual(execDateFormatted)) {
+        for (Instrument instrument : portfolio.getCurrentPortfolio().keySet()) {
+            if(instrument.getExecutionDate().isEqual(execDateFormatted)) {
                 noOfTrades++;
-                sum += instrument.getAgreedFx()
-                        * instrument.getCurrentPricePerUnit()
-                        * portfolio.getInstruments().get(instrument);
+                sum += instrument.getFxRate()
+                        * instrument.getCurrentPrice()
+                        * portfolio.getCurrentPortfolio().get(instrument);
             }
         }
         if(noOfTrades == 0){
@@ -47,43 +47,44 @@ class PortfolioCalculator {
     }
 
     Double calcPortfolioValue() throws EmptyPortfolioException {
-        if(portfolio.getInstruments().size() == 0){
+        if(portfolio.getCurrentPortfolio().size() == 0){
             throw new EmptyPortfolioException("Portfolio is Empty");
         }
         double sum = 0;
-        for (Instrument instrument : portfolio.getInstruments().keySet()) {
-            sum += instrument.getAgreedFx()
-                    * instrument.getCurrentPricePerUnit()
-                    * portfolio.getInstruments().get(instrument);
+        for (Instrument instrKey : portfolio.getCurrentPortfolio().keySet()) {
+            int noOfUnits = portfolio.getCurrentPortfolio().get(instrKey);
+            sum += instrKey.getFxRate()
+                    * instrKey.getCurrentPrice()
+                    * noOfUnits;
         }
         return sum;
     }
 
-    private double getTransactionRate(SecurityType securityType){
-        if(securityType == SecurityType.BOND) {
+    private double getTransactionRate(InstrumentType instrumentType){
+        if(instrumentType == InstrumentType.BOND) {
             return bondTransRate;
         }
-        else if(securityType == SecurityType.STOCK) {
+        else if(instrumentType == InstrumentType.STOCK) {
             return stockTransRate;
         }
         else return cashTransRate;
     }
 
     private double getSum(Instrument instrument) {
-        double transRate = getTransactionRate(instrument.getSecurityType());
-        int noOfUnits = portfolio.getInstruments().get(instrument);
+        double transRate = getTransactionRate(instrument.getInstrumentType());
+        int noOfUnits = portfolio.getCurrentPortfolio().get(instrument);
         return ((noOfUnits
-                * instrument.getAgreedFx()
-                * (instrument.getCurrentPricePerUnit() - instrument.getPurchasedPricePerUnit()))
+                * instrument.getFxRate()
+                * (instrument.getCurrentPrice() - instrument.getPurchasedPrice()))
                 + (instrument.getTransactionCost(transRate, noOfUnits)));
     }
 
 
-    /*Returns Double.MinValue if given tradeID not found in the Portfolio*/
-    Double calcPnLforTradeID(String tradeID){
+    /*Returns Double.NaN if given tradeID not found in the Portfolio*/
+    Double calcPnLForInstrument(String instrumentId){
         for (Instrument instrument :
-                portfolio.getInstruments().keySet()) {
-            if (instrument.getInstrumentId().equals(tradeID)) {
+                portfolio.getCurrentPortfolio().keySet()) {
+            if (instrument.getInstrumentId().equals(instrumentId)) {
                 return getSum(instrument);
             }
         }
@@ -91,12 +92,12 @@ class PortfolioCalculator {
     }
 
     Map<Instrument, Double> calcPnLForAllTradesInPortfolio() throws EmptyPortfolioException {
-        if(portfolio.getInstruments().size() == 0){
+        if(portfolio.getCurrentPortfolio().size() == 0){
             throw new EmptyPortfolioException("Portfolio is Empty");
         }
         Map<Instrument, Double> pnlMap = new HashMap<Instrument, Double>();
         for (Instrument instrument :
-                portfolio.getInstruments().keySet()) {
+                portfolio.getCurrentPortfolio().keySet()) {
             Double value = getSum(instrument);
             pnlMap.put(instrument,value);
         }
@@ -104,7 +105,7 @@ class PortfolioCalculator {
     }
 
     Map<Instrument, Double> calcPnlForDay(String executionDate) throws EmptyPortfolioException {
-        if(portfolio.getInstruments().size() == 0){
+        if(portfolio.getCurrentPortfolio().size() == 0){
             throw new EmptyPortfolioException("Portfolio is Empty");
         }
         DateTime pnlDay;
@@ -116,7 +117,7 @@ class PortfolioCalculator {
         }
         Map<Instrument, Double> pnlMap = new HashMap<Instrument, Double>();
         for (Instrument instrument :
-                portfolio.getInstruments().keySet()) {
+                portfolio.getCurrentPortfolio().keySet()) {
             if (instrument.getExecutionDate().isEqual(pnlDay)) {
                 Double value = getSum(instrument);
                 pnlMap.put(instrument, value);
@@ -127,7 +128,7 @@ class PortfolioCalculator {
 
     Map<Instrument, Double> calcPnLRealisedOrUnRealised(String executionDate, boolean realised)
                                 throws EmptyPortfolioException {
-        if(portfolio.getInstruments().size() == 0){
+        if(portfolio.getCurrentPortfolio().size() == 0){
             throw new EmptyPortfolioException("Portfolio is Empty");
         }
         DateTime pnlDay;
@@ -140,7 +141,7 @@ class PortfolioCalculator {
         Map<Instrument, Double> pnlMap = new HashMap<Instrument, Double>();
         if(realised) {
             for (Instrument instrument :
-                    portfolio.getInstruments().keySet()) {
+                    portfolio.getCurrentPortfolio().keySet()) {
                 if (instrument.getExecutionDate().isBefore(pnlDay) || instrument.getExecutionDate().equals(pnlDay) ) {
                     Double value = getSum(instrument);
                     pnlMap.put(instrument, value);
@@ -149,7 +150,7 @@ class PortfolioCalculator {
         }
         else {
             for (Instrument instrument :
-                    portfolio.getInstruments().keySet()) {
+                    portfolio.getCurrentPortfolio().keySet()) {
                 if (instrument.getExecutionDate().isAfter(pnlDay)) {
                     Double value = getSum(instrument);
                     pnlMap.put(instrument, value);

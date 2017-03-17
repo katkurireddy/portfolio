@@ -3,41 +3,41 @@ import org.joda.time.format.DateTimeFormat;
 
 public class Instrument {
     private String instrumentId;
-    private SecurityType securityType;
-    private BuyOrSell buyOrSell;
-    private double agreedFx;
+    private InstrumentType instrumentType;
+    private HoldingPosition currentPosition;
+    private double fxRate;
     private String currency;
     private DateTime executionDate;
-    private double currentPricePerUnit;
-    private double purchasedPricePerUnit;
+    private double currentPrice;
+    private double purchasedPrice;
 
-    Instrument(String instrumentId, SecurityType securityType, BuyOrSell buyOrSell,
-               Double agreedFx, String currency, String executionDate,
-               double currentPricePerUnit, double purchasedPricePerUnit) {
+    Instrument(String instrumentId, InstrumentType instrumentType, HoldingPosition currentPosition,
+               Double fxRate, String currency, String executionDate,
+               double currentPrice, double purchasedPrice) {
         this.instrumentId = instrumentId;
-        this.securityType = securityType;
-        this.buyOrSell = buyOrSell;
-        this.agreedFx = agreedFx;
+        this.instrumentType = instrumentType;
+        this.currentPosition = currentPosition;
+        this.fxRate = fxRate;
         this.currency = currency;
         this.executionDate = DateTime.parse(executionDate, DateTimeFormat.forPattern("dd MMM yyy"));
-        this.currentPricePerUnit = currentPricePerUnit;
-        this.purchasedPricePerUnit = purchasedPricePerUnit;
+        this.currentPrice = currentPrice;
+        this.purchasedPrice = purchasedPrice;
     }
 
     String getInstrumentId(){
         return instrumentId;
     }
 
-    SecurityType getSecurityType(){
-        return securityType;
+    InstrumentType getInstrumentType(){
+        return instrumentType;
     }
 
-    BuyOrSell getBuyOrSell() {
-        return buyOrSell;
+    HoldingPosition getCurrentPosition() {
+        return currentPosition;
     }
 
-    Double getAgreedFx() {
-        return agreedFx;
+    Double getFxRate() {
+        return fxRate;
     }
 
     String getCurrency() {
@@ -48,22 +48,26 @@ public class Instrument {
         return executionDate;
     }
 
-    Double getCurrentPricePerUnit() {
-        return currentPricePerUnit;
+    Double getCurrentPrice() {
+        return currentPrice;
     }
 
-    Double getPurchasedPricePerUnit() {
-        return purchasedPricePerUnit;
+    Double getPurchasedPrice() {
+        return purchasedPrice;
     }
 
     double getTransactionCost(double transRate, int noOfUnits) {
-        if(securityType == SecurityType.BOND) {
-            return (this.currentPricePerUnit - this.purchasedPricePerUnit)
-                    * this.agreedFx
+        if(instrumentType == InstrumentType.BOND) {
+            return (this.currentPrice - this.purchasedPrice)
+                    * this.fxRate
                     * noOfUnits
                     * transRate;
         }
         return transRate;
+    }
+
+    public void setCurrentPosition(HoldingPosition currentPosition) {
+        this.currentPosition = currentPosition;
     }
 
     @Override
@@ -73,37 +77,35 @@ public class Instrument {
 
         Instrument instrument = (Instrument) o;
         if (!getInstrumentId().equals(instrument.getInstrumentId())) return false;
-        if (getSecurityType() != instrument.getSecurityType()) return false;
-        if (getBuyOrSell() != instrument.getBuyOrSell()) return false;
-        if (!getAgreedFx().equals(instrument.getAgreedFx())) return false;
+        if (getInstrumentType() != instrument.getInstrumentType()) return false;
+        if (!getFxRate().equals(instrument.getFxRate())) return false;
         if (!getCurrency().equals(instrument.getCurrency())) return false;
         if (!getExecutionDate().equals(instrument.getExecutionDate())) return false;
-        if (!getCurrentPricePerUnit().equals(instrument.getCurrentPricePerUnit())) return false;
-        return getPurchasedPricePerUnit().equals(instrument.getPurchasedPricePerUnit());
+        if (!getCurrentPrice().equals(instrument.getCurrentPrice())) return false;
+        return getPurchasedPrice().equals(instrument.getPurchasedPrice());
     }
 
     @Override
     public String toString() {
         return "Instrument{" +
                 "instrumentId='" + instrumentId + '\'' +
-                ", securityType=" + securityType +
-                ", buyOrSell=" + buyOrSell +
+                ", instrumentType=" + instrumentType +
+                ", currentPosition=" + currentPosition +
                 ", executionDate=" + executionDate +
-                ", currentPricePerUnit=" + currentPricePerUnit +
-                ", purchasedPricePerUnit=" + purchasedPricePerUnit +
+                ", currentPrice=" + currentPrice +
+                ", purchasedPrice=" + purchasedPrice +
                 '}';
     }
 
     @Override
     public int hashCode() {
         int result = getInstrumentId().hashCode();
-        result = 31 * result + getSecurityType().hashCode();
-        result = 31 * result + getBuyOrSell().hashCode();
-        result = 31 * result + getAgreedFx().hashCode();
+        result = 31 * result + getInstrumentType().hashCode();
+        result = 31 * result + getFxRate().hashCode();
         result = 31 * result + getCurrency().hashCode();
         result = 31 * result + getExecutionDate().hashCode();
-        result = 31 * result + getCurrentPricePerUnit().hashCode();
-        result = 31 * result + getPurchasedPricePerUnit().hashCode();
+        result = 31 * result + getCurrentPrice().hashCode();
+        result = 31 * result + getPurchasedPrice().hashCode();
         return result;
     }
 }
